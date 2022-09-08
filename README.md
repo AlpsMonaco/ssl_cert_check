@@ -40,8 +40,8 @@ not after -> 24 days,30314 secs
 ----------------------------------------
 domain -> www.google.com
 port -> 443
-not before -> 0 days,0 secs
-not after -> 0 days,0 secs
+not before -> 745 days,0 secs
+not after -> 24 days,30314 secs
 ----------------------------------------
 error:connect to target endpoint failed
 domain -> youtube.com
@@ -51,8 +51,8 @@ not after -> 0 days,0 secs
 ----------------------------------------
 domain -> cloudflare.com
 port -> 443
-not before -> 0 days,0 secs
-not after -> 0 days,0 secs
+not before -> 745 days,0 secs
+not after -> 24 days,30314 secs
 ----------------------------------------
 ```
 
