@@ -31,6 +31,30 @@ cloudflare.com
 ```
 ./ssl_cert_check -fdomains.txt
 ```
+```
+----------------------------------------
+domain -> google.com
+port -> 443
+not before -> 745 days,12886 secs
+not after -> 24 days,30314 secs
+----------------------------------------
+domain -> www.google.com
+port -> 443
+not before -> 0 days,0 secs
+not after -> 0 days,0 secs
+----------------------------------------
+error:connect to target endpoint failed
+domain -> youtube.com
+port -> 444
+not before -> 0 days,0 secs
+not after -> 0 days,0 secs
+----------------------------------------
+domain -> cloudflare.com
+port -> 443
+not before -> 0 days,0 secs
+not after -> 0 days,0 secs
+----------------------------------------
+```
 
 ## Library Usage
 ```c++

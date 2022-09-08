@@ -83,9 +83,18 @@ namespace scc
                                 else
                                 {
                                     auto socket_ptr = std::make_shared<asio::ip::tcp::socket>(ios);
+                                    auto timer_ptr = std::make_shared<asio::steady_timer>(ios);
+                                    timer_ptr->expires_from_now(std::chrono::seconds(3));
+                                    timer_ptr->async_wait([socket_ptr, timer_ptr](const std::error_code& ec) -> void
+                                                          {
+                                                              if (!ec)
+                                                              {
+                                                                  socket_ptr->close();
+                                                              }
+                                                          });
                                     socket_ptr
                                         ->async_connect(results->endpoint(),
-                                                        [&, socket_ptr](const std::error_code& ec) -> void
+                                                        [&, socket_ptr, timer_ptr](const std::error_code& ec) -> void
                                                         {
                                                             if (ec)
                                                             {
@@ -94,6 +103,7 @@ namespace scc
                                                             }
                                                             else
                                                             {
+                                                                timer_ptr->cancel();
                                                                 SSLCertInfo ssl_cert_info{ep, {0, 0}, {0, 0}, kSuccess};
                                                                 SOCKET handle = socket_ptr->native_handle();
                                                                 OpensslCheckCert(handle, ssl_cert_info);
@@ -180,4 +190,4 @@ namespace scc
         return os;
     }
 
-} // namespace ssl_cert_check
+} // namespace scc
