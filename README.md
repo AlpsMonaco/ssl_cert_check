@@ -1,5 +1,5 @@
 # ssl_cert_check
-c++ https ssl certificate expiration time check tool.
+c++ https ssl certificate expiration time and info check tool.
 
 ## Cli usage
 ```
@@ -63,5 +63,3 @@ For `Linux` user,you need to install `openssl` in your system.
 For `Windows` user,there are `openssl` header files and precompiled `openssl` lib in this repository.  
 You could simply `CMake` it using `Visual Studio`.But if the compile has any unexpected error,you might need to change the `openssl`  
 dependency yourself.  
-
-
