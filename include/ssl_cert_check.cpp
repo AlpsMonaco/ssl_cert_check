@@ -84,20 +84,24 @@ namespace scc
                                 {
                                     auto socket_ptr = std::make_shared<asio::ip::tcp::socket>(ios);
                                     auto timer_ptr = std::make_shared<asio::steady_timer>(ios);
+                                    auto is_timeout = std::make_shared<bool>(false);
                                     timer_ptr->expires_from_now(std::chrono::seconds(3));
-                                    timer_ptr->async_wait([socket_ptr, timer_ptr](const std::error_code& ec) -> void
+                                    timer_ptr->async_wait([socket_ptr, timer_ptr, is_timeout](const std::error_code& ec) -> void
                                                           {
                                                               if (!ec)
                                                               {
+                                                                  *is_timeout = true;
                                                                   socket_ptr->close();
                                                               }
                                                           });
                                     socket_ptr
                                         ->async_connect(results->endpoint(),
-                                                        [&, socket_ptr, timer_ptr](const std::error_code& ec) -> void
+                                                        [&, socket_ptr, timer_ptr, is_timeout](const std::error_code& ec) -> void
                                                         {
                                                             if (ec)
                                                             {
+                                                                if (!(*is_timeout))
+                                                                    timer_ptr->cancel();
                                                                 result.emplace_back(
                                                                     SSLCertInfo{ep, {0, 0}, {0, 0}, kSocketConnectFailed});
                                                             }
