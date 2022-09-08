@@ -53,13 +53,15 @@ for (const auto& v : result)
 ## Compile
 
 use `CMake` to compile.
-```
+
+```bash
+# linux
 mkdir build ; cd build ; cmake .. ; make ;
 ```
 
 For `Linux` user,you need to install `openssl` in your system.  
 For `Windows` user,there are `openssl` header files and precompiled `openssl` lib in this repository.  
-You could simply `CMake` it.But if the compile have any unexpected error,you might need to change the `openssl`  
+You could simply `CMake` it using `Visual Studio`.But if the compile has any unexpected error,you might need to change the `openssl`  
 dependency yourself.  
 
 
