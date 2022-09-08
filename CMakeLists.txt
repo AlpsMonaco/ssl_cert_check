@@ -74,4 +74,4 @@ if(WIN32)
 
 endif()
 
-
+add_custom_command(TARGET SSL_CERT_CHECK POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/domains.txt $<TARGET_FILE_DIR:SSL_CERT_CHECK>)

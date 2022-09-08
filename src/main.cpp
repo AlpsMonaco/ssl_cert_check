@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <string_view>
+#include <mutex>
 
 void PrintHelp()
 {
@@ -73,15 +74,22 @@ int CheckFromFile(int argc, char** argv)
                       std::stoi(std::string(port.begin(), port.end())));
         }
     }
+    check.SetConcurrency(10);
+    check.SetThreadNum(10);
+    check.SetConnectTimeout(1);
+    std::mutex mu;
     check.AsyncCheck(
-        [](const scc::SSLCertInfo& v) -> void
+        [&](const scc::SSLCertInfo& v) -> void
         {
+            mu.lock();
             std::cout << "----------------------------------------" << std::endl;
             if (v.HasError())
                 std::cout << "error:" << v.Message() << std::endl;
             std::cout << v << std::endl;
+            mu.unlock();
         });
     std::cout << "----------------------------------------" << std::endl;
+    std::cout << "done" << std::endl;
     return 0;
 }
 

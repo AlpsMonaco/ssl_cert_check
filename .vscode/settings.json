@@ -94,7 +94,7 @@
     },
     "cmake.debugConfig": {
         "args": [
-            "-ftest.txt"
+            "-fdomains.txt"
         ]
     }
 }
