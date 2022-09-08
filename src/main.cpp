@@ -73,14 +73,14 @@ int CheckFromFile(int argc, char** argv)
                       std::stoi(std::string(port.begin(), port.end())));
         }
     }
-    auto result = check.Start();
-    for (const auto& v : result)
-    {
-        std::cout << "----------------------------------------" << std::endl;
-        if (v.HasError())
-            std::cout << "error:" << v.Message() << std::endl;
-        std::cout << v << std::endl;
-    }
+    check.AsyncCheck(
+        [](const scc::SSLCertInfo& v) -> void
+        {
+            std::cout << "----------------------------------------" << std::endl;
+            if (v.HasError())
+                std::cout << "error:" << v.Message() << std::endl;
+            std::cout << v << std::endl;
+        });
     std::cout << "----------------------------------------" << std::endl;
     return 0;
 }
@@ -98,7 +98,7 @@ int CheckFromArgs(int argc, char** argv)
     }
     scc::SSLCertCheck check;
     check.Add(domain, port);
-    auto result = check.Start();
+    auto result = check.CheckAll();
     for (const auto& v : result)
     {
         if (v.HasError())

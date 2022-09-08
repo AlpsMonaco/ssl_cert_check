@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <ostream>
+#include <functional>
 
 namespace scc
 {
@@ -43,18 +44,24 @@ namespace scc
     class SSLCertCheck
     {
     public:
+        using Callback = std::function<void(const SSLCertInfo&)>;
+
         SSLCertCheck();
         ~SSLCertCheck();
 
         void Add(const HttpsEndPoint& endpoint);
         void Add(const std::string& domain, unsigned short port = 443);
 
-        std::vector<SSLCertInfo> Start();
+        // CheckAll() blocks and returns when all domains are check;
+        std::vector<SSLCertInfo> CheckAll();
+
+        // AsyncCheck() invoke callback anytime when a domain is checked.
+        void AsyncCheck(const Callback& callback);
 
     protected:
         std::vector<HttpsEndPoint> check_endpoint_list_;
         int concurrency_num_;
     };
-} // namespace ssl_cert_check
+} // namespace scc
 
 #endif

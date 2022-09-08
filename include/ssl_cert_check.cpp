@@ -63,7 +63,7 @@ namespace scc
     void AsyncCheckDomainSSL(asio::io_service& ios,
                              const std::vector<HttpsEndPoint>& endpoint_list,
                              std::atomic_size_t& cursor,
-                             std::vector<SSLCertInfo>& result)
+                             const SSLCertCheck::Callback& callback)
     {
         auto index = cursor++;
         if (index >= endpoint_list.size()) return;
@@ -76,9 +76,8 @@ namespace scc
                             {
                                 if (ec || results.size() == 0)
                                 {
-                                    result.emplace_back(
-                                        SSLCertInfo{ep, {0, 0}, {0, 0}, kDomainResolveFailed});
-                                    AsyncCheckDomainSSL(ios, endpoint_list, cursor, result);
+                                    callback(SSLCertInfo{ep, {0, 0}, {0, 0}, kDomainResolveFailed});
+                                    AsyncCheckDomainSSL(ios, endpoint_list, cursor, callback);
                                 }
                                 else
                                 {
@@ -102,8 +101,7 @@ namespace scc
                                                             {
                                                                 if (!(*is_timeout))
                                                                     timer_ptr->cancel();
-                                                                result.emplace_back(
-                                                                    SSLCertInfo{ep, {0, 0}, {0, 0}, kSocketConnectFailed});
+                                                                callback(SSLCertInfo{ep, {0, 0}, {0, 0}, kSocketConnectFailed});
                                                             }
                                                             else
                                                             {
@@ -111,21 +109,25 @@ namespace scc
                                                                 SSLCertInfo ssl_cert_info{ep, {0, 0}, {0, 0}, kSuccess};
                                                                 SOCKET handle = socket_ptr->native_handle();
                                                                 OpensslCheckCert(handle, ssl_cert_info);
-                                                                result.emplace_back(ssl_cert_info);
+                                                                callback(ssl_cert_info);
                                                             }
-                                                            AsyncCheckDomainSSL(ios, endpoint_list, cursor, result);
+                                                            AsyncCheckDomainSSL(ios, endpoint_list, cursor, callback);
                                                         });
                                 }
                             });
     }
 
-    std::vector<SSLCertInfo> CheckDomainList(const std::vector<HttpsEndPoint>& endpoint_list, int thread_num = 5)
+    std::vector<SSLCertInfo> CheckDomainListAll(const std::vector<HttpsEndPoint>& endpoint_list, int concurrency_num = 5)
     {
         asio::io_service ios;
         std::vector<SSLCertInfo> result;
         std::atomic_size_t cursor;
-        for (size_t i = 0; i < thread_num; i++)
-            AsyncCheckDomainSSL(ios, endpoint_list, cursor, result);
+        SSLCertCheck::Callback cb = [&](const SSLCertInfo& info) -> void
+        {
+            result.emplace_back(info);
+        };
+        for (size_t i = 0; i < concurrency_num; i++)
+            AsyncCheckDomainSSL(ios, endpoint_list, cursor, cb);
         ios.run();
         return result;
     }
@@ -150,9 +152,20 @@ namespace scc
         Add(HttpsEndPoint{domain, port});
     }
 
-    std::vector<SSLCertInfo> SSLCertCheck::Start()
+    std::vector<SSLCertInfo> SSLCertCheck::CheckAll()
     {
-        return CheckDomainList(check_endpoint_list_, concurrency_num_);
+        return CheckDomainListAll(check_endpoint_list_, concurrency_num_);
+    }
+
+    void SSLCertCheck::AsyncCheck(const Callback& callback)
+    {
+        asio::io_service ios;
+        std::atomic_size_t cursor;
+        for (size_t i = 0; i < concurrency_num_; i++)
+        {
+            AsyncCheckDomainSSL(ios, check_endpoint_list_, cursor, callback);
+        }
+        ios.run();
     }
 
     std::string SSLCertInfo::Message() const

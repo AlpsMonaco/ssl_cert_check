@@ -89,6 +89,12 @@
         "string_view": "cpp",
         "ranges": "cpp",
         "cinttypes": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "resumable": "cpp"
+    },
+    "cmake.debugConfig": {
+        "args": [
+            "-ftest.txt"
+        ]
     }
 }
