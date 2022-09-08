@@ -16,7 +16,7 @@
 #define SOCKET int
 #endif
 
-namespace ssl_cert_check
+namespace scc
 {
     void OpensslCheckCert(SOCKET handle, SSLCertInfo& ssl_cert_info)
     {
@@ -150,7 +150,7 @@ namespace ssl_cert_check
         case kDomainResolveFailed:
             return "resolve domain dns failed";
         case kSocketConnectFailed:
-            return "connect to target domain failed";
+            return "connect to target endpoint failed";
         default:
             return "unknown error";
         }

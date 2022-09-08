@@ -6,18 +6,18 @@
 void PrintHelp()
 {
     std::cout << R"(usage:
-    ./ssl_cert_check <domain> [port]
+    ./scc <domain> [port]
     port is optional
 
 example:
-    ./ssl_cert_check www.google.com 
-    ./ssl_cert_check www.google.com 443
+    ./scc www.google.com 
+    ./scc www.google.com 443
 
 -f  check domain from text file.
-    ./ssl_cert_check -f <file_path>
+    ./scc -f <file_path>
 
 example:
-    ./ssl_cert_check -f domains.txt
+    ./scc -f domains.txt
 
 file format:
 endpoint per line in the text file,port is optional.
@@ -52,6 +52,7 @@ int CheckFromFile(int argc, char** argv)
     }
     std::string line;
     static constexpr std::string_view empty_strs = " \t\r\n";
+    scc::SSLCertCheck check;
     while (std::getline(ifs, line))
     {
         if (line.size() == 0) continue;
@@ -61,17 +62,26 @@ int CheckFromFile(int argc, char** argv)
         begin_index = sv.find_first_of(empty_strs);
         if (begin_index == std::string::npos)
         {
-            std::cout << sv << std::endl;
+            check.Add(std::string(sv.data(), sv.size()));
         }
         else
         {
             end_index = sv.find_last_of(empty_strs);
             std::string_view domain(sv.data(), begin_index);
             std::string_view port(sv.data() + end_index + 1, sv.size() - end_index);
-            std::cout << domain << std::endl;
-            std::cout << port << std::endl;
+            check.Add(std::string(domain.data(), domain.size()),
+                      std::stoi(std::string(port.begin(), port.end())));
         }
     }
+    auto result = check.Start();
+    for (const auto& v : result)
+    {
+        std::cout << "----------------------------------------" << std::endl;
+        if (v.HasError())
+            std::cout << "error:" << v.Message() << std::endl;
+        std::cout << v << std::endl;
+    }
+    std::cout << "----------------------------------------" << std::endl;
     return 0;
 }
 
@@ -86,7 +96,7 @@ int CheckFromArgs(int argc, char** argv)
         if (argv_port > 0 && argv_port < 65535)
             port = argv_port;
     }
-    ssl_cert_check::SSLCertCheck check;
+    scc::SSLCertCheck check;
     check.Add(domain, port);
     auto result = check.Start();
     for (const auto& v : result)

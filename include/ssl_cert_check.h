@@ -5,7 +5,7 @@
 #include <string>
 #include <ostream>
 
-namespace ssl_cert_check
+namespace scc
 {
     struct SSLCertTime
     {
