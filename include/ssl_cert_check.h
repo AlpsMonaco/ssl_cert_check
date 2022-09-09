@@ -52,19 +52,12 @@ namespace scc
         void Add(const HttpsEndPoint& endpoint);
         void Add(const std::string& domain, unsigned short port = 443);
         void SetConcurrency(int num);
-        void SetThreadNum(int num);
         void SetConnectTimeout(int seconds);
-
-        // CheckAll() blocks and returns when all domains are check;
-        std::vector<SSLCertInfo> CheckAll();
-
-        // AsyncCheck() invoke callback anytime when a domain is checked.
-        void AsyncCheck(const Callback& callback);
+        void BeginCheck(const Callback& callback);
 
     protected:
-        std::vector<HttpsEndPoint> check_endpoint_list_;
+        std::vector<HttpsEndPoint> endpoint_list_;
         int concurrency_num_;
-        int thread_num_;
         int connect_timeout_;
     };
 } // namespace scc

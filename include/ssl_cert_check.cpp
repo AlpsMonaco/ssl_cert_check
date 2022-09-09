@@ -61,6 +61,128 @@ namespace scc
         X509_free(cert);
     }
 
+    struct AsyncSSLCertCheckService
+    {
+        asio::io_service socket_ios;
+        asio::io_service timer_ios;
+
+        AsyncSSLCertCheckService(size_t concurrency_num)
+            : socket_ios(),
+              timer_ios(),
+              socket_work_ptr_(nullptr),
+              timer_work_ptr_(nullptr),
+              concurrency_num_(concurrency_num)
+        {
+        }
+
+        void Start()
+        {
+            GuradIOService();
+            for (size_t i = 0; i < concurrency_num_; i++)
+            {
+                std::thread(
+                    [&]() -> void
+                    {
+                        socket_ios.run();
+                    })
+                    .detach();
+                std::thread(
+                    [&]() -> void
+                    {
+                        timer_ios.run();
+                    })
+                    .detach();
+            }
+        }
+
+        void Stop()
+        {
+            FreeIOService();
+        }
+
+    protected:
+        void GuradIOService()
+        {
+            if (socket_work_ptr_ != nullptr) delete socket_work_ptr_;
+            socket_work_ptr_ = new asio::io_service::work(socket_ios);
+            if (timer_work_ptr_ != nullptr) delete timer_work_ptr_;
+            timer_work_ptr_ = new asio::io_service::work(timer_ios);
+        }
+
+        void FreeIOService()
+        {
+            if (socket_work_ptr_ != nullptr) delete socket_work_ptr_;
+            if (timer_work_ptr_ != nullptr) delete timer_work_ptr_;
+        }
+
+        asio::io_service::work* socket_work_ptr_;
+        asio::io_service::work* timer_work_ptr_;
+        size_t concurrency_num_;
+    };
+
+    void AsyncCheckOneDomainSSL(AsyncSSLCertCheckService& service, std::atomic_size_t& cursor,
+                                const std::vector<HttpsEndPoint>& endpoint_list,
+                                const SSLCertCheck::Callback& callback, int connect_timeout)
+    {
+        auto index = cursor++;
+        if (index >= endpoint_list.size()) return;
+        const HttpsEndPoint& ep = endpoint_list[index];
+        auto resolver_ptr = std::make_shared<asio::ip::tcp::resolver>(service.socket_ios);
+        resolver_ptr
+            ->async_resolve(asio::ip::tcp::v4(), ep.domain, std::to_string(ep.port),
+                            [&, resolver_ptr](
+                                const std::error_code& ec,
+                                const asio::ip::tcp::resolver::results_type& results) -> void
+                            {
+                                if (ec)
+                                {
+                                    callback(SSLCertInfo{ep, {0, 0}, {0, 0}, kDomainResolveFailed});
+                                    AsyncCheckOneDomainSSL(service, cursor, endpoint_list, callback, connect_timeout);
+                                    return;
+                                }
+                                if (results.size() == 0)
+                                {
+                                    callback(SSLCertInfo{ep, {0, 0}, {0, 0}, kDomainResolveFailed});
+                                    AsyncCheckOneDomainSSL(service, cursor, endpoint_list, callback, connect_timeout);
+                                    return;
+                                }
+                                auto socket_ptr = std::make_shared<asio::ip::tcp::socket>(service.socket_ios);
+                                auto timer_ptr = std::make_shared<asio::steady_timer>(service.timer_ios);
+                                auto is_timeout = std::make_shared<bool>(false);
+                                timer_ptr->expires_from_now(std::chrono::seconds(connect_timeout));
+                                timer_ptr->async_wait([socket_ptr, timer_ptr,
+                                                       is_timeout](const std::error_code& ec) -> void
+                                                      {
+                                                          if (!ec)
+                                                          {
+                                                              *is_timeout = true;
+                                                              socket_ptr->close();
+                                                          }
+                                                      });
+                                socket_ptr
+                                    ->async_connect(results->endpoint(),
+                                                    [&, socket_ptr, timer_ptr, is_timeout,
+                                                     connect_timeout](const std::error_code& ec) -> void
+                                                    {
+                                                        if (ec)
+                                                        {
+                                                            if (!(*is_timeout))
+                                                                timer_ptr->cancel();
+                                                            callback(SSLCertInfo{ep, {0, 0}, {0, 0}, kSocketConnectFailed});
+                                                        }
+                                                        else
+                                                        {
+                                                            timer_ptr->cancel();
+                                                            SSLCertInfo ssl_cert_info{ep, {0, 0}, {0, 0}, kSuccess};
+                                                            SOCKET handle = socket_ptr->native_handle();
+                                                            OpensslCheckCert(handle, ssl_cert_info);
+                                                            callback(ssl_cert_info);
+                                                        }
+                                                        AsyncCheckOneDomainSSL(service, cursor, endpoint_list, callback, connect_timeout);
+                                                    });
+                            });
+    }
+
     void AsyncCheckDomainSSL(asio::io_service& ios,
                              const std::vector<HttpsEndPoint>& endpoint_list,
                              std::atomic_size_t& cursor,
@@ -74,7 +196,7 @@ namespace scc
         resolver_ptr
             ->async_resolve(ep.domain, std::to_string(ep.port),
                             [&, resolver_ptr, connect_timeout](const std::error_code& ec,
-                                                                   const asio::ip::tcp::resolver::results_type& results) -> void
+                                                               const asio::ip::tcp::resolver::results_type& results) -> void
                             {
                                 if (ec || results.size() == 0)
                                 {
@@ -119,43 +241,9 @@ namespace scc
                             });
     }
 
-    std::vector<SSLCertInfo> CheckDomainListAll(const std::vector<HttpsEndPoint>& endpoint_list,
-                                                int concurrency_num = 5,
-                                                int thread_num = 5,
-                                                int connect_timeout = 3)
-    {
-        asio::io_service ios;
-        std::vector<SSLCertInfo> result;
-        std::atomic_size_t cursor;
-        std::mutex mu;
-        SSLCertCheck::Callback cb = [&](const SSLCertInfo& info) -> void
-        {
-            mu.lock();
-            result.emplace_back(info);
-            mu.unlock();
-        };
-        for (size_t i = 0; i < concurrency_num; i++)
-            AsyncCheckDomainSSL(ios, endpoint_list, cursor, cb, connect_timeout);
-        std::vector<std::thread> thread_list;
-        for (size_t i = 0; i < thread_num; i++)
-        {
-            thread_list.emplace_back(
-                [&]() -> void
-                {
-                    ios.run();
-                });
-        }
-        for (auto& t : thread_list)
-        {
-            t.join();
-        }
-        return result;
-    }
-
     SSLCertCheck::SSLCertCheck()
-        : check_endpoint_list_(),
+        : endpoint_list_(),
           concurrency_num_(5),
-          thread_num_(5),
           connect_timeout_(3)
     {
     }
@@ -166,7 +254,7 @@ namespace scc
 
     void SSLCertCheck::Add(const HttpsEndPoint& endpoint)
     {
-        check_endpoint_list_.emplace_back(endpoint);
+        endpoint_list_.emplace_back(endpoint);
     }
 
     void SSLCertCheck::Add(const std::string& domain, unsigned short port)
@@ -174,42 +262,30 @@ namespace scc
         Add(HttpsEndPoint{domain, port});
     }
 
-    std::vector<SSLCertInfo> SSLCertCheck::CheckAll()
+    void SSLCertCheck::BeginCheck(const Callback& callback)
     {
-        return CheckDomainListAll(check_endpoint_list_, concurrency_num_, connect_timeout_);
-    }
-
-    void SSLCertCheck::AsyncCheck(const Callback& callback)
-    {
-        asio::io_service ios;
+        AsyncSSLCertCheckService service(concurrency_num_);
         std::atomic_size_t cursor;
         for (size_t i = 0; i < concurrency_num_; i++)
         {
-            AsyncCheckDomainSSL(ios, check_endpoint_list_, cursor, callback, connect_timeout_);
+            AsyncCheckOneDomainSSL(service, cursor, endpoint_list_, callback, connect_timeout_);
         }
-        std::vector<std::thread> thread_list;
-        for (size_t i = 0; i < thread_num_; i++)
+        service.Start();
+        for (;;)
         {
-            thread_list.emplace_back(
-                [&]() -> void
-                {
-                    ios.run();
-                });
-        }
-        for (auto& t : thread_list)
-        {
-            t.join();
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            size_t i = cursor;
+            if (i > endpoint_list_.size())
+            {
+                service.Stop();
+                break;
+            }
         }
     }
 
     void SSLCertCheck::SetConcurrency(int num)
     {
         concurrency_num_ = num;
-    }
-
-    void SSLCertCheck::SetThreadNum(int num)
-    {
-        thread_num_ = num;
     }
 
     void SSLCertCheck::SetConnectTimeout(int seconds)
