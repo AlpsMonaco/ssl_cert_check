@@ -4,6 +4,13 @@
 #include <thread>
 #include "asio.hpp"
 
+#ifdef _WIN32
+void localtime_r(const time_t* tt, tm* tm)
+{
+    localtime_s(tm, tt);
+}
+#endif
+
 template <typename T>
 void Println(const T& t)
 {

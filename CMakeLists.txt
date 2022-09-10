@@ -86,7 +86,10 @@ target_include_directories(NETWORK_TEST
             ${CMAKE_SOURCE_DIR}/third_party/asio/asio/include
 )
 
+if(WIN32)
+else()
 target_link_libraries(NETWORK_TEST
     PRIVATE
         pthread
 )
+endif()
