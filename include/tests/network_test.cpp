@@ -2,6 +2,7 @@
 #include <chrono>
 #include <iomanip>
 #include <thread>
+#include <string_view>
 #include "asio.hpp"
 
 #ifdef _WIN32
@@ -28,7 +29,7 @@ void Println(const T& t)
     std::cout << ss.str();
 }
 
-int main(int argc, char** argv)
+int TestDSNResolve()
 {
     asio::io_service ios;
     asio::ip::tcp::resolver r(ios);
@@ -46,4 +47,14 @@ int main(int argc, char** argv)
         Println(std::string("resolve time:") + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(ed - st).count()) + "ms");
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+}
+
+int main(int argc, char** argv)
+{
+    TestDSNResolve();
+    std::string_view sv = "asd";
+    std::string s(sv);
+    Println(s);
+    std::string_view new_sv(s);
+    Println(new_sv);
 }

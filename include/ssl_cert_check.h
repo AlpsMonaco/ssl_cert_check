@@ -1,8 +1,9 @@
 #ifndef __SSL_CERT_CHECK_H__
 #define __SSL_CERT_CHECK_H__
 
-#include <vector>
 #include <string>
+#include <string_view>
+#include <vector>
 #include <ostream>
 #include <functional>
 
@@ -10,55 +11,77 @@ namespace scc
 {
     struct SSLCertTime
     {
-        int day;
-        int sec;
+        int days;
+        int secs;
     };
 
-    struct HttpsEndPoint
+    struct Endpoint
     {
-        std::string domain;
+        std::string address;
         unsigned short port;
     };
 
-    enum SSLCertInfoStatus
+    enum SSLCertCheckStatus
     {
         kSuccess = 0,
-        kDomainResolveFailed,
-        kSocketConnectFailed,
+        kResolveError,
+        kConnectError,
+        kHandshakeError,
     };
 
     struct SSLCertInfo
     {
-        HttpsEndPoint endpoint;
+        Endpoint endpoint;
         SSLCertTime not_before;
         SSLCertTime not_after;
-        SSLCertInfoStatus status;
+        SSLCertCheckStatus status;
 
-        std::string Message() const;
-        std::string Message();
-        bool HasError() const;
-        bool HasError();
         friend std::ostream& operator<<(std::ostream& os, const SSLCertInfo& info);
+        bool HasError() const
+        {
+            return status != kSuccess;
+        }
+
+        std::string Message() const
+        {
+            switch (status)
+            {
+            case kSuccess:
+                return "success";
+            case kResolveError:
+                return "resolve target domain name failed";
+            case kConnectError:
+                return "connect to target endpoint failed";
+            case kHandshakeError:
+                return "handshake with target endpoint failed";
+            default:
+                return "unknown";
+            }
+        }
+
+        bool HasError()
+        {
+            return const_cast<SSLCertInfo&>(*this).HasError();
+        }
     };
 
     class SSLCertCheck
     {
     public:
         using Callback = std::function<void(const SSLCertInfo&)>;
-
         SSLCertCheck();
         ~SSLCertCheck();
 
-        void Add(const HttpsEndPoint& endpoint);
-        void Add(const std::string& domain, unsigned short port = 443);
-        void SetConcurrency(int num);
-        void SetConnectTimeout(int seconds);
+        // address could be an ip or a domain name.
+        void Add(const std::string_view& address, unsigned short port = 443);
         void BeginCheck(const Callback& callback);
+        void SetConcurrency(size_t concurrency_num);
+        void SetConnectTimeout(size_t milliseconds);
 
     protected:
-        std::vector<HttpsEndPoint> endpoint_list_;
-        int concurrency_num_;
-        int connect_timeout_;
+        std::vector<Endpoint> endpoint_list_;
+        size_t concurrency_num_;
+        size_t connect_timeout_;
     };
 } // namespace scc
 

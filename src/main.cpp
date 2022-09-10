@@ -70,12 +70,12 @@ int CheckFromFile(int argc, char** argv)
             end_index = sv.find_last_of(empty_strs);
             std::string_view domain(sv.data(), begin_index);
             std::string_view port(sv.data() + end_index + 1, sv.size() - end_index);
-            check.Add(std::string(domain.data(), domain.size()),
-                      std::stoi(std::string(port.begin(), port.end())));
+            check.Add(std::string(domain),
+                      std::stoi(std::string(port)));
         }
     }
     check.SetConcurrency(10);
-    check.SetConnectTimeout(1);
+    check.SetConnectTimeout(1000);
     std::mutex mu;
     check.BeginCheck(
         [&](const scc::SSLCertInfo& v) -> void
