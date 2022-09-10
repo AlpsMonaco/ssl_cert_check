@@ -33,27 +33,6 @@ int main(int argc, char** argv)
     asio::io_service ios;
     asio::ip::tcp::resolver r(ios);
     std::error_code ec;
-
-    std::thread([]() -> void
-                {
-                    asio::io_service ios;
-                    asio::ip::tcp::resolver r(ios);
-                    std::error_code ec;
-                    for (;;)
-                    {
-                        auto st = std::chrono::system_clock::now();
-                        auto results = r.resolve(asio::ip::tcp::v4(), "google.com", "443", ec);
-                        if (ec)
-                        {
-                            std::cout << ec << std::endl;
-                            return;
-                        }
-                        auto ed = std::chrono::system_clock::now();
-                        Println(std::string("resolve time:") + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(ed - st).count()) + "ms");
-                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                    }
-                })
-        .detach();
     for (;;)
     {
         auto st = std::chrono::system_clock::now();
