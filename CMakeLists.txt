@@ -75,3 +75,18 @@ if(WIN32)
 endif()
 
 add_custom_command(TARGET SSL_CERT_CHECK POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/domains.txt $<TARGET_FILE_DIR:SSL_CERT_CHECK>)
+
+
+add_executable(NETWORK_TEST
+    ${CMAKE_SOURCE_DIR}/include/tests/network_test.cpp
+)
+
+target_include_directories(NETWORK_TEST
+        PRIVATE
+            ${CMAKE_SOURCE_DIR}/third_party/asio/asio/include
+)
+
+target_link_libraries(NETWORK_TEST
+    PRIVATE
+        pthread
+)
