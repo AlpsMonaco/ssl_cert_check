@@ -1,3 +1,6 @@
 [submodule "third_party/asio"]
 	path = third_party/asio
 	url = https://github.com/chriskohlhoff/asio
+[submodule "third_party/dns_query"]
+	path = third_party/dns_query
+	url = https://github.com/AlpsMonaco/dns_query

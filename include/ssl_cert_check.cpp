@@ -7,6 +7,7 @@
 #include <openssl/ssl.h>
 #include <asio.hpp>
 #include <thread>
+#include <dns_query/dns_query.h>
 #include "ssl_cert_check.h"
 
 #ifndef _WIN32
@@ -81,7 +82,7 @@ namespace scc
             : socket_ios_(),
               timer_ios_(),
               socket_work_ptr_(nullptr),
-              timer_work_ptr(nullptr),
+              timer_work_ptr_(nullptr),
               concurrency_num_(concurrency_num),
               connect_timeout_(connect_timeout),
               cursor_(0),
@@ -96,12 +97,12 @@ namespace scc
         {
             if (socket_work_ptr_ != nullptr) delete socket_work_ptr_;
             socket_work_ptr_ = new asio::io_service::work(socket_ios_);
-            if (timer_work_ptr != nullptr) delete timer_work_ptr;
-            timer_work_ptr = new asio::io_service::work(timer_ios_);
+            if (timer_work_ptr_ != nullptr) delete timer_work_ptr_;
+            timer_work_ptr_ = new asio::io_service::work(timer_ios_);
             std::vector<std::thread> thread_list;
             for (size_t i = 0; i < concurrency_num_; i++)
             {
-                AsyncCheck();
+                AsyncCheckNext();
                 thread_list.emplace_back(
                     std::thread([&]() -> void
                                 {
@@ -113,16 +114,23 @@ namespace scc
                                     timer_ios_.run();
                                 }));
             }
+            thread_list.emplace_back(std::thread(
+                [&]() -> void
+                {
+                    dns_query_.Run(false);
+                }));
+
             for (;;)
             {
                 std::this_thread::sleep_for(std::chrono::seconds(1));
-                size_t num = done_cursor_;
+                size_t num = cursor_;
                 if (num >= endpoint_list_.size())
                 {
                     UnlockIOService();
                     break;
                 }
             }
+            dns_query_.Stop();
             for (auto& t : thread_list)
                 t.join();
         }
@@ -138,10 +146,10 @@ namespace scc
         void UnlockIOService()
         {
             if (socket_work_ptr_ != nullptr) delete socket_work_ptr_;
-            if (timer_work_ptr != nullptr) delete timer_work_ptr;
+            if (timer_work_ptr_ != nullptr) delete timer_work_ptr_;
         }
 
-        void AsyncCheck()
+        void AsyncCheckNext()
         {
             size_t index = cursor_++;
             if (index >= endpoint_list_.size()) return;
@@ -151,33 +159,39 @@ namespace scc
                                  asio::ip::address::from_string(endpoint.address), endpoint.port),
                              endpoint.address);
             else
+            {
                 AsyncCheckDomain(endpoint);
+            }
         }
 
         void AsyncCheckDomain(const Endpoint& endpoint)
         {
-            auto resolver_ptr = std::make_shared<asio::ip::tcp::resolver>(socket_ios_);
-            resolver_ptr->async_resolve(
-                asio::ip::tcp::v4(), endpoint.address, std::to_string(endpoint.port),
-                [&, resolver_ptr](const std::error_code& ec, const asio::ip::tcp::resolver::results_type& results) -> void
-                {
-                    if (ec || results.size() == 0)
-                    {
-                        callback_(
-                            SSLCertInfo{
-                                {endpoint.address, endpoint.port},
-                                {0, 0},
-                                {0, 0},
-                                kResolveError,
-                            });
-                        done_cursor_++;
-                    }
-                    else
-                    {
-                        AsyncCheckIP(*results, endpoint.address);
-                    }
-                    AsyncCheck();
-                });
+            dns_query_.AsyncResolve(endpoint.address, [&](const dns::Result& result) -> void
+                                    {
+                                        if (result.HasError())
+                                        {
+                                            callback_(
+                                                SSLCertInfo{
+                                                    {endpoint.address, endpoint.port},
+                                                    {0, 0},
+                                                    {0, 0},
+                                                    kConnectError,
+                                                });
+                                            AsyncCheckNext();
+                                            return;
+                                        }
+                                        if (result.Begin() != dns::Result::iterator_end)
+                                        {
+                                            AsyncCheckIP(asio::ip::tcp::endpoint(
+                                                             asio::ip::address::from_string(std::string(*result.Begin())),
+                                                             endpoint.port),
+                                                         std::string(result.Name()));
+                                        }
+                                        else
+                                        {
+                                            AsyncCheckNext();
+                                        }
+                                    });
         }
 
         void AsyncCheckIP(const asio::ip::tcp::endpoint& endpoint, const std::string& address)
@@ -190,7 +204,7 @@ namespace scc
                                       if (!ec) socket_ptr->cancel();
                                   });
             socket_ptr->async_connect(endpoint,
-                                      [&, timer_ptr, endpoint = endpoint, socket_ptr](const std::error_code& ec)
+                                      [&, timer_ptr, endpoint = endpoint, socket_ptr, address = address](const std::error_code& ec)
                                           -> void
                                       {
                                           if (ec)
@@ -217,20 +231,21 @@ namespace scc
                                               callback_(info);
                                           }
                                           done_cursor_++;
-                                          AsyncCheck();
+                                          AsyncCheckNext();
                                       });
         }
 
         asio::io_service socket_ios_;
         asio::io_service timer_ios_;
         asio::io_service::work* socket_work_ptr_;
-        asio::io_service::work* timer_work_ptr;
+        asio::io_service::work* timer_work_ptr_;
         size_t concurrency_num_;
         size_t connect_timeout_;
         std::atomic_size_t cursor_;
         std::atomic_size_t done_cursor_;
         const std::vector<Endpoint>& endpoint_list_;
         const SSLCertCheck::Callback& callback_;
+        dns::DNSQuery dns_query_;
     };
 
     SSLCertCheck::SSLCertCheck()

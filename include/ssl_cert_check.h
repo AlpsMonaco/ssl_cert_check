@@ -71,8 +71,6 @@ namespace scc
         using Callback = std::function<void(const SSLCertInfo&)>;
         SSLCertCheck();
         ~SSLCertCheck();
-
-        // address could be an ip or a domain name.
         void Add(const std::string_view& address, unsigned short port = 443);
         void BeginCheck(const Callback& callback);
         void SetConcurrency(size_t concurrency_num);

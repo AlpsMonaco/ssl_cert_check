@@ -90,7 +90,8 @@
         "ranges": "cpp",
         "cinttypes": "cpp",
         "fstream": "cpp",
-        "resumable": "cpp"
+        "resumable": "cpp",
+        "set": "cpp"
     },
     "cmake.debugConfig": {
         "args": [
