@@ -16,7 +16,7 @@
 
 namespace scc
 {
-    void OpensslCheckCert(SOCKET handle, SSLCertInfo& info)
+    void OpensslCheckCert(SOCKET handle, SSLCertCheckResult& info)
     {
         auto meth = SSLv23_client_method();
         OpenSSL_add_ssl_algorithms();
@@ -65,7 +65,7 @@ namespace scc
         return false;
     }
 
-    std::ostream& operator<<(std::ostream& os, const SSLCertInfo& info)
+    std::ostream& operator<<(std::ostream& os, const SSLCertCheckResult& info)
     {
         os << "address -> " << info.endpoint.address << std::endl
            << "port -> " << info.endpoint.port << std::endl
@@ -119,11 +119,10 @@ namespace scc
                 {
                     dns_query_.Run(false);
                 }));
-
             for (;;)
             {
                 std::this_thread::sleep_for(std::chrono::seconds(1));
-                size_t num = cursor_;
+                size_t num = done_cursor_;
                 if (num >= endpoint_list_.size())
                 {
                     UnlockIOService();
@@ -171,12 +170,13 @@ namespace scc
                                         if (result.HasError())
                                         {
                                             callback_(
-                                                SSLCertInfo{
+                                                SSLCertCheckResult{
                                                     {endpoint.address, endpoint.port},
                                                     {0, 0},
                                                     {0, 0},
                                                     kConnectError,
                                                 });
+                                            done_cursor_++;
                                             AsyncCheckNext();
                                             return;
                                         }
@@ -189,6 +189,7 @@ namespace scc
                                         }
                                         else
                                         {
+                                            done_cursor_++;
                                             AsyncCheckNext();
                                         }
                                     });
@@ -210,7 +211,7 @@ namespace scc
                                           if (ec)
                                           {
                                               callback_(
-                                                  SSLCertInfo{
+                                                  SSLCertCheckResult{
                                                       {address, endpoint.port()},
                                                       {0, 0},
                                                       {0, 0},
@@ -220,7 +221,7 @@ namespace scc
                                           else
                                           {
                                               timer_ptr->cancel();
-                                              SSLCertInfo info{
+                                              SSLCertCheckResult info{
                                                   {address, endpoint.port()},
                                                   {0, 0},
                                                   {0, 0},
@@ -276,6 +277,28 @@ namespace scc
     void SSLCertCheck::SetConnectTimeout(size_t milliseconds)
     {
         connect_timeout_ = milliseconds;
+    }
+
+    bool SSLCertCheckResult::HasError() const
+    {
+        return status != kSuccess;
+    }
+
+    std::string_view SSLCertCheckResult::Message() const
+    {
+        switch (status)
+        {
+        case kSuccess:
+            return "success";
+        case kResolveError:
+            return "resolve target domain name failed";
+        case kConnectError:
+            return "connect to target endpoint failed";
+        case kHandshakeError:
+            return "handshake with target endpoint failed";
+        default:
+            return "unknown";
+        }
     }
 
 } // namespace scc

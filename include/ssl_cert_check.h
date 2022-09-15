@@ -29,46 +29,21 @@ namespace scc
         kHandshakeError,
     };
 
-    struct SSLCertInfo
+    struct SSLCertCheckResult
     {
         Endpoint endpoint;
         SSLCertTime not_before;
         SSLCertTime not_after;
         SSLCertCheckStatus status;
-
-        friend std::ostream& operator<<(std::ostream& os, const SSLCertInfo& info);
-        bool HasError() const
-        {
-            return status != kSuccess;
-        }
-
-        std::string Message() const
-        {
-            switch (status)
-            {
-            case kSuccess:
-                return "success";
-            case kResolveError:
-                return "resolve target domain name failed";
-            case kConnectError:
-                return "connect to target endpoint failed";
-            case kHandshakeError:
-                return "handshake with target endpoint failed";
-            default:
-                return "unknown";
-            }
-        }
-
-        bool HasError()
-        {
-            return const_cast<SSLCertInfo&>(*this).HasError();
-        }
+        friend std::ostream& operator<<(std::ostream& os, const SSLCertCheckResult& info);
+        bool HasError() const;
+        std::string_view Message() const;
     };
 
     class SSLCertCheck
     {
     public:
-        using Callback = std::function<void(const SSLCertInfo&)>;
+        using Callback = std::function<void(const SSLCertCheckResult&)>;
         SSLCertCheck();
         ~SSLCertCheck();
         void Add(const std::string_view& address, unsigned short port = 443);
