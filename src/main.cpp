@@ -78,7 +78,7 @@ int CheckFromFile(int argc, char** argv)
     check.SetConnectTimeout(1000);
     std::mutex mu;
     check.BeginCheck(
-        [&](const scc::SSLCertInfo& v) -> void
+        [&](const scc::SSLCertCheckResult& v) -> void
         {
             mu.lock();
             std::cout << "----------------------------------------" << std::endl;

@@ -7,6 +7,7 @@
 #include <openssl/ssl.h>
 #include <asio.hpp>
 #include <thread>
+#include <mutex>
 #include <dns_query/dns_query.h>
 #include "ssl_cert_check.h"
 
@@ -165,6 +166,7 @@ namespace scc
 
         void AsyncCheckDomain(const Endpoint& endpoint)
         {
+            mutex_.lock();
             dns_query_.AsyncResolve(endpoint.address, [&](const dns::Result& result) -> void
                                     {
                                         if (result.HasError())
@@ -193,6 +195,7 @@ namespace scc
                                             AsyncCheckNext();
                                         }
                                     });
+            mutex_.unlock();
         }
 
         void AsyncCheckIP(const asio::ip::tcp::endpoint& endpoint, const std::string& address)
@@ -247,6 +250,7 @@ namespace scc
         const std::vector<Endpoint>& endpoint_list_;
         const SSLCertCheck::Callback& callback_;
         dns::DNSQuery dns_query_;
+        std::mutex mutex_;
     };
 
     SSLCertCheck::SSLCertCheck()
