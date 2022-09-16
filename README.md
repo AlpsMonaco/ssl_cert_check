@@ -76,7 +76,12 @@ not after -> 24 days,30314 secs
 
 ## Compile
 
-use `CMake` to compile.
+1. Init all git module
+```bash
+git submodule update --init --recursive
+```
+
+2. use `CMake` to compile.
 
 ```bash
 # linux
