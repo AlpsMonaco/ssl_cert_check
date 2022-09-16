@@ -36,6 +36,8 @@ namespace scc
                 if (count > 30)
                 {
                     info.status = kHandshakeError;
+                    SSL_CTX_free(ctx);
+                    SSL_free(ssl);
                     return;
                 }
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -55,8 +57,9 @@ namespace scc
         ASN1_TIME_diff(&day, &sec, NULL, not_after);
         info.not_after.days = day;
         info.not_after.secs = sec;
-        BIO_free_all(bio);
         X509_free(cert);
+        SSL_CTX_free(ctx);
+        SSL_free(ssl);
     }
 
     bool IsDomain(const std::string_view& sv)
