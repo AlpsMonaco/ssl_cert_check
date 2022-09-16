@@ -64,14 +64,13 @@ scc::SSLCertCheck check;
 // add target endpoint,default port is 443;
 check.Add("google.com");
 check.Add("www.google.com",443);
-auto result = check.Start();
-for (const auto& v : result)
-{
-    if (v.HasError())
-        std::cout << v.Message() << std::endl;
-    else
+check.BeginCheck(
+    [&](const scc::SSLCertCheckResult& result) -> void
+    {
+        if (result.HasError())
+            std::cout << "error:" << result.Message() << std::endl;
         std::cout << v << std::endl;
-}
+    });
 ```
 
 ## Compile

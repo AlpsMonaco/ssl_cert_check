@@ -77,42 +77,49 @@ int CheckFromFile(int argc, char** argv)
     check.SetConcurrency(10);
     check.SetConnectTimeout(1000);
     std::mutex mu;
+    std::cout << "----------------------------------------" << std::endl;
     check.BeginCheck(
         [&](const scc::SSLCertCheckResult& v) -> void
         {
             mu.lock();
-            std::cout << "----------------------------------------" << std::endl;
             if (v.HasError())
                 std::cout << "error:" << v.Message() << std::endl;
             std::cout << v << std::endl;
+            std::cout << "----------------------------------------" << std::endl;
             mu.unlock();
         });
-    std::cout << "----------------------------------------" << std::endl;
     std::cout << "done" << std::endl;
     return 0;
 }
 
 int CheckFromArgs(int argc, char** argv)
 {
-    // unsigned short port = 443;
-    // std::string domain = argv[1];
-    // if (argc > 2)
-    // {
-    //     std::string port_str = argv[2];
-    //     int argv_port = std::stoi(port_str);
-    //     if (argv_port > 0 && argv_port < 65535)
-    //         port = argv_port;
-    // }
-    // scc::SSLCertCheck check;
-    // check.Add(domain, port);
-    // auto result = check.CheckAll();
-    // for (const auto& v : result)
-    // {
-    //     if (v.HasError())
-    //         std::cout << v.Message() << std::endl;
-    //     else
-    //         std::cout << v << std::endl;
-    // }
+    unsigned short port = 443;
+    std::string domain = argv[1];
+    if (argc > 2)
+    {
+        std::string port_str = argv[2];
+        int argv_port = std::stoi(port_str);
+        if (argv_port > 0 && argv_port < 65535)
+            port = argv_port;
+    }
+    scc::SSLCertCheck check;
+    check.Add(domain, port);
+    check.SetConcurrency(10);
+    check.SetConnectTimeout(1000);
+    std::mutex mu;
+    std::cout << "----------------------------------------" << std::endl;
+    check.BeginCheck(
+        [&](const scc::SSLCertCheckResult& v) -> void
+        {
+            mu.lock();
+            if (v.HasError())
+                std::cout << "error:" << v.Message() << std::endl;
+            std::cout << v << std::endl;
+            std::cout << "----------------------------------------" << std::endl;
+            mu.unlock();
+        });
+    std::cout << "done" << std::endl;
     return 0;
 }
 

@@ -4,6 +4,10 @@ project(ssl_cert_check)
 
 set(CMAKE_CXX_STANDARD 17)
 
+IF(NOT EXISTS "${CMAKE_SOURCE_DIR}/third_party/async_dns_resolver/third_party/c-ares/CMakeLists.txt")
+    message(FATAL_ERROR "c-ares not exist\nplease run \"git submodule update --init --recursive\"")
+ENDIF()
+
 add_library(ssl_cert_check_library STATIC
     ${CMAKE_SOURCE_DIR}/include/ssl_cert_check.cpp
     ${CMAKE_SOURCE_DIR}/include/ssl_cert_check.h
@@ -12,10 +16,10 @@ add_library(ssl_cert_check_library STATIC
 target_include_directories(ssl_cert_check_library
     PRIVATE
         ${CMAKE_SOURCE_DIR}/third_party/asio/asio/include
-        ${CMAKE_SOURCE_DIR}/third_party/dns_query/include
+        ${CMAKE_SOURCE_DIR}/third_party/async_dns_resolver/include
 )
 
-add_subdirectory(third_party/dns_query)
+add_subdirectory(third_party/async_dns_resolver)
 
 if(WIN32)
     add_compile_definitions(_WIN32_WINNT=0x0601)
