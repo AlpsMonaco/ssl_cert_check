@@ -1,6 +1,24 @@
 # ssl_cert_check
 c++ https ssl certificate expiration time and info check tool.
 
+
+## Library Usage
+```c++
+#include "ssl_cert_check.h"
+...
+scc::SSLCertCheck check;
+// add target endpoint,default port is 443;
+check.Add("google.com");
+check.Add("www.google.com",443);
+check.BeginCheck(
+    [&](const scc::SSLCertCheckResult& result) -> void
+    {
+        if (result.HasError())
+            std::cout << "error:" << result.Message() << std::endl;
+        std::cout << v << std::endl;
+    });
+```
+
 ## Cli usage
 ```
 ./ssl_cert_check google.com
@@ -54,23 +72,6 @@ port -> 443
 not before -> 745 days,0 secs
 not after -> 24 days,30314 secs
 ----------------------------------------
-```
-
-## Library Usage
-```c++
-#include "ssl_cert_check.h"
-...
-scc::SSLCertCheck check;
-// add target endpoint,default port is 443;
-check.Add("google.com");
-check.Add("www.google.com",443);
-check.BeginCheck(
-    [&](const scc::SSLCertCheckResult& result) -> void
-    {
-        if (result.HasError())
-            std::cout << "error:" << result.Message() << std::endl;
-        std::cout << v << std::endl;
-    });
 ```
 
 ## Compile
