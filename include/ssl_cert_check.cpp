@@ -8,7 +8,7 @@
 #include <asio.hpp>
 #include <thread>
 #include <mutex>
-#include <dns_query/dns_query.h>
+#include <dns_resolve/dns_resolve.h>
 #include "ssl_cert_check.h"
 
 #ifndef _WIN32
@@ -170,7 +170,7 @@ namespace scc
         void AsyncCheckDomain(const Endpoint& endpoint)
         {
             mutex_.lock();
-            dns_query_.AsyncResolve(endpoint.address, [&](const dns::Result& result) -> void
+            dns_query_.AsyncResolve(endpoint.address, [&](const dnsresolve::Result& result) -> void
                                     {
                                         if (result.HasError())
                                         {
@@ -185,7 +185,7 @@ namespace scc
                                             AsyncCheckNext();
                                             return;
                                         }
-                                        if (result.Begin() != dns::Result::iterator_end)
+                                        if (result.Begin() != dnsresolve::Result::iterator_end)
                                         {
                                             AsyncCheckIP(asio::ip::tcp::endpoint(
                                                              asio::ip::address::from_string(std::string(*result.Begin())),
@@ -252,7 +252,7 @@ namespace scc
         std::atomic_size_t done_cursor_;
         const std::vector<Endpoint>& endpoint_list_;
         const SSLCertCheck::Callback& callback_;
-        dns::DNSQuery dns_query_;
+        dnsresolve::Resolver dns_query_;
         std::mutex mutex_;
     };
 

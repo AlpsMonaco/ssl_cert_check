@@ -16,7 +16,6 @@ add_library(ssl_cert_check_library STATIC
 target_include_directories(ssl_cert_check_library
     PRIVATE
         ${CMAKE_SOURCE_DIR}/third_party/asio/asio/include
-        ${CMAKE_SOURCE_DIR}/third_party/async_dns_resolver/include
 )
 
 add_subdirectory(third_party/async_dns_resolver)
@@ -38,7 +37,7 @@ if(WIN32)
         PRIVATE
             libssl
             libcrypto
-            dns_query::lib
+            dns_resolve::lib
     )
 else()
 
@@ -47,7 +46,7 @@ else()
             ssl
             crypto
             pthread
-            dns_query::lib
+            dns_resolve::lib
         )
 
 endif()
@@ -80,7 +79,6 @@ if(WIN32)
 endif()
 
 add_custom_command(TARGET ssl_cert_check POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/domains.txt $<TARGET_FILE_DIR:ssl_cert_check>)
-
 
 add_executable(network_test
     ${CMAKE_SOURCE_DIR}/include/tests/network_test.cpp
